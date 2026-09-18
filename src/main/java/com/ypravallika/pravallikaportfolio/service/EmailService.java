@@ -1,3 +1,4 @@
+
 package com.ypravallika.pravallikaportfolio.service;
 
 import java.util.HashMap;
@@ -17,114 +18,146 @@ import com.ypravallika.pravallikaportfolio.model.ContactMessage;
 @Service
 public class EmailService {
 
-@Value("${resend.api.key}")
-private String resendApiKey;
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
 
-private final ObjectMapper objectMapper = new ObjectMapper();
+    @Value("${brevo.sender.email}")
+    private String senderEmail;
 
-public void sendEmail(ContactMessage contact) {
+    @Value("${brevo.sender.name}")
+    private String senderName;
 
-    String url = "https://api.resend.com/emails";
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    try {
+    public void sendEmail(ContactMessage contact) {
 
-        RestTemplate restTemplate = new RestTemplate();
+        String url = "https://api.brevo.com/v3/smtp/email";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(resendApiKey);
+        try {
 
-        Map<String, Object> emailData = new HashMap<>();
+            RestTemplate restTemplate = new RestTemplate();
 
-        emailData.put("from", "onboarding@resend.dev");
-        emailData.put(
-                "to",
-                new String[]{"yeturupravallika94@gmail.com"}
-        );
+            HttpHeaders headers = new HttpHeaders();
 
-        emailData.put(
-                "subject",
-                "New Portfolio Contact: " + contact.getSubject()
-        );
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-        String html = """
-                <h2>New Portfolio Contact</h2>
-                <p><strong>Name:</strong> %s</p>
-                <p><strong>Email:</strong> %s</p>
-                <p><strong>Subject:</strong> %s</p>
-                <p><strong>Message:</strong> %s</p>
-                """.formatted(
-                        escapeHtml(contact.getName()),
-                        escapeHtml(contact.getEmail()),
-                        escapeHtml(contact.getSubject()),
-                        escapeHtml(contact.getMessage())
-                );
+            // Brevo uses "api-key" instead of Bearer authentication
+            headers.set("api-key", brevoApiKey);
 
-        emailData.put("html", html);
+            Map<String, Object> emailData = new HashMap<>();
 
-        String body = objectMapper.writeValueAsString(emailData);
+            // Sender
+            Map<String, String> sender = new HashMap<>();
+            sender.put("name", senderName);
+            sender.put("email", senderEmail);
 
-        HttpEntity<String> request =
-                new HttpEntity<>(body, headers);
+            emailData.put("sender", sender);
 
-        String response = restTemplate.postForObject(
-                url,
-                request,
-                String.class
-        );
+            // Receiver
+            Map<String, String> recipient = new HashMap<>();
+            recipient.put("email", "ypravallika46@gmail.com");
+            recipient.put("name", "Pravallika");
 
-        System.out.println("==================================");
-        System.out.println("EMAIL SENT SUCCESSFULLY USING RESEND");
-        System.out.println("Resend Response: " + response);
-        System.out.println("==================================");
+            emailData.put(
+                    "to",
+                    new Map[]{recipient}
+            );
 
-    } catch (HttpClientErrorException e) {
+            // Subject
+            emailData.put(
+                    "subject",
+                    "New Portfolio Contact: " + contact.getSubject()
+            );
 
-        System.out.println("==================================");
-        System.out.println("RESEND HTTP ERROR");
-        System.out.println("STATUS CODE: " + e.getStatusCode().value());
-        System.out.println("STATUS TEXT: " + e.getStatusText());
-        System.out.println(
-                "RESPONSE BODY: " + e.getResponseBodyAsString()
-        );
-        System.out.println("==================================");
+            // Email body
+            String html = """
+                    <h2>New Portfolio Contact</h2>
 
-        throw new RuntimeException(
-                "Failed to send email using Resend",
-                e
-        );
+                    <p>
+                        <strong>Name:</strong> %s
+                    </p>
 
-    } catch (Exception e) {
+                    <p>
+                        <strong>Email:</strong> %s
+                    </p>
 
-        System.out.println("==================================");
-        System.out.println("RESEND EMAIL ERROR");
-        System.out.println(
-                "Exception: " + e.getClass().getName()
-        );
-        System.out.println("Message: " + e.getMessage());
-        e.printStackTrace();
-        System.out.println("==================================");
+                    <p>
+                        <strong>Subject:</strong> %s
+                    </p>
 
-        throw new RuntimeException(
-                "Failed to send email using Resend",
-                e
-        );
+                    <p>
+                        <strong>Message:</strong> %s
+                    </p>
+                    """.formatted(
+                    escapeHtml(contact.getName()),
+                    escapeHtml(contact.getEmail()),
+                    escapeHtml(contact.getSubject()),
+                    escapeHtml(contact.getMessage())
+            );
+
+            emailData.put("htmlContent", html);
+
+            String body = objectMapper.writeValueAsString(emailData);
+
+            HttpEntity<String> request =
+                    new HttpEntity<>(body, headers);
+
+            String response = restTemplate.postForObject(
+                    url,
+                    request,
+                    String.class
+            );
+
+            System.out.println("==================================");
+            System.out.println("EMAIL SENT SUCCESSFULLY USING BREVO");
+            System.out.println("Brevo Response: " + response);
+            System.out.println("==================================");
+
+        } catch (HttpClientErrorException e) {
+
+            System.out.println("==================================");
+            System.out.println("BREVO HTTP ERROR");
+            System.out.println("STATUS CODE: " + e.getStatusCode().value());
+            System.out.println("STATUS TEXT: " + e.getStatusText());
+            System.out.println(
+                    "RESPONSE BODY: " + e.getResponseBodyAsString()
+            );
+            System.out.println("==================================");
+
+            throw new RuntimeException(
+                    "Failed to send email using Brevo",
+                    e
+            );
+
+        } catch (Exception e) {
+
+            System.out.println("==================================");
+            System.out.println("BREVO EMAIL ERROR");
+            System.out.println(
+                    "Exception: " + e.getClass().getName()
+            );
+            System.out.println("Message: " + e.getMessage());
+            e.printStackTrace();
+            System.out.println("==================================");
+
+            throw new RuntimeException(
+                    "Failed to send email using Brevo",
+                    e
+            );
+        }
     }
-}
 
-private String escapeHtml(String text) {
+    private String escapeHtml(String text) {
 
-    if (text == null) {
-        return "";
+        if (text == null) {
+            return "";
+        }
+
+        return text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
-
-    return text
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&#39;");
-}
-
-
 }
